@@ -1,0 +1,7 @@
+# Config GUI strings
+streamdeck.config.title=TestMod3 Config
+
+streamdeck.general.alwaysrender=Always Render
+streamdeck.general.alwaysrender.tooltip=Always render items - may cause an FPS hit
+
+streamdeck.key=StreamDeck %s

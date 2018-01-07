@@ -1,0 +1,16 @@
+[
+{
+  "modid": "streamdeck",
+  "name": "Stream Deck Minecraft",
+  "description": "A mod to show data on the StreamDeck, and control Minecraft from it",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Cloudhunter"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
