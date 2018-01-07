@@ -92,21 +92,26 @@ public class StreamDeckMinecraft
                 {
                     if (bytes != null)
                     {
-                        int height = 72;
-                        int width = 72 * 9;
-
+                        int height = 72 * numLines;
+                        int width = 72 * oneLine;
                         for (int x = 0; x < width; ++x)
                         {
-                            int image = (x / 72);
-                            if (!ourRenderChanged[image])
-                            {
-                                continue;
-                            }
+
                             for (int y = 0; y < height; ++y)
                             {
+                                int image = (x / 72) + (oneLine * (y / 72));
+                                if (image >= ourRenderChanged.length)
+                                {
+                                    break;
+                                }
+                                if (!ourRenderChanged[image])
+                                {
+                                    continue;
+                                }
+
                                 int i = (x + y * width) * 4;
                                 int realX = 71 - (x % 72);
-                                int realY = 71 - y;
+                                int realY = 71 - (y % 72);
                                 int realI = (realX + (realY * 72)) * 3;
                                 images[image][realI + 2] = bytes.get(i);
                                 images[image][realI + 1] = bytes.get(i + 1);
@@ -419,6 +424,16 @@ public class StreamDeckMinecraft
     boolean renderChanged = false;
     boolean first = true;
 
+    int numLines;
+    int oneLine;
+
+    int lastWidth;
+    int lastHeight;
+
+    int lastGuiScale;
+
+    ScaledResolution res;
+
     @SubscribeEvent
     public void tick(TickEvent.RenderTickEvent e)
     {
@@ -430,23 +445,40 @@ public class StreamDeckMinecraft
 
         shouldRender = false;
 
-        EntityPlayer entityplayer = Minecraft.getMinecraft().player;
+        Minecraft mc = Minecraft.getMinecraft();
+
+        EntityPlayer entityplayer = mc.player;
 
         if (entityplayer == null)
             return;
 
         if (itemRenderer == null)
-            itemRenderer = Minecraft.getMinecraft().getRenderItem();
+            itemRenderer = mc.getRenderItem();
 
-        if (buffer == null)
+        if (buffer == null || mc.displayWidth != lastWidth || mc.displayHeight != lastHeight || mc.gameSettings.guiScale != lastGuiScale)
         {
-            ScaledResolution res = new ScaledResolution(Minecraft.getMinecraft());
-            width = res.getScaledWidth() * res.getScaleFactor();
-            height = res.getScaledHeight() * res.getScaleFactor();
+            res = new ScaledResolution(mc);
+            if (buffer != null)
+            {
+                buffer.deleteFramebuffer();
+            }
+            lastWidth = mc.displayWidth;
+            lastHeight = mc.displayHeight;
+            lastGuiScale = mc.gameSettings.guiScale;
+
+            System.out.println(res.getScaleFactor());
+
+            width = lastWidth;
+            height = lastHeight;
 
             // lets find out how many we can fit on one line
-            buffer = new Framebuffer(width, height, true);
-            buffer.setFramebufferColor(0, 0, 0, 1);
+            oneLine = width / 72;
+            numLines = (int)Math.ceil(15D / (double)oneLine);
+            buffer = new Framebuffer(lastWidth, lastHeight, true);
+            buffer.setFramebufferColor(0, 0, 0, 0);
+            int numOfBytes = 72 * oneLine * 72 * numLines * 4;
+
+            bytes = ByteBuffer.allocateDirect(numOfBytes);
         }
         else if (buffer.framebufferObject == -1)
             return;
@@ -455,11 +487,6 @@ public class StreamDeckMinecraft
             buffer.framebufferClear();
             buffer.bindFramebuffer(true);
         }
-
-        int numOfBytes = 72 * 9 * 72 * 4;
-
-        if (bytes == null)
-            bytes = ByteBuffer.allocateDirect(numOfBytes);
 
         if (justSwitched)
         {
@@ -473,12 +500,16 @@ public class StreamDeckMinecraft
                 }
                 justSwitched = false;
 
-                glReadPixels(0, height - 72, 72 * 9, 72, GL_RGBA, GL_UNSIGNED_BYTE, bytes);
+                glReadPixels(0, height - 72, 72 * oneLine, 72 * numLines, GL_RGBA, GL_UNSIGNED_BYTE, bytes);
                 renderChanged = true;
             }
 
             return;
         }
+
+        float scale = (2F / (float)res.getScaleFactor());
+
+        GlStateManager.scale(scale, scale, 0);
 
         switch (mode)
         {
@@ -492,7 +523,7 @@ public class StreamDeckMinecraft
 
         buffer.unbindFramebuffer();
 
-        Minecraft.getMinecraft().getFramebuffer().bindFramebuffer(true);
+        mc.getFramebuffer().bindFramebuffer(true);
     }
 
     protected void hotbarRender(TickEvent.RenderTickEvent e, EntityPlayer entityplayer)
@@ -565,7 +596,7 @@ public class StreamDeckMinecraft
         {
             synchronized (renderLock)
             {
-                glReadPixels(0, height - 72, 72 * 9, 72, GL_RGBA, GL_UNSIGNED_BYTE, bytes);
+                glReadPixels(0, height - 72, 72 * oneLine, 72 * numLines, GL_RGBA, GL_UNSIGNED_BYTE, bytes);
                 rendersChanged = tempRendersChanged;
                 renderChanged = true;
             }
